@@ -1,4 +1,4 @@
-import {useContext} from 'react';
+import React, {useContext, useEffect, useState} from 'react';
 import {
   StatusBar,
   Text,
@@ -20,14 +20,23 @@ export default function SongModalComponent({
 }: {
   onCloseButtonPress: () => void;
 }) {
-  const {
-    setCurrentPlayingTime,
-    currentPlayingTime,
-    currentSong,
-    isPlaying,
-    playPause,
-    changeSong,
-  } = useContext(AppContext);
+  const {currentSong, isPlaying, playPause, changeSong, progress, goTo} =
+    useContext(AppContext);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [isSeeking, setIsSeeking] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (progress.position >= 0 && !isSeeking) setCurrentTime(progress.position);
+  }, [progress, isSeeking]);
+
+  const handleSlidingStart = () => {
+    setIsSeeking(true);
+  };
+
+  const handleSlidingComplete = (newValue: number) => {
+    setIsSeeking(false);
+    goTo(newValue);
+  };
 
   return (
     <SafeAreaView
@@ -68,17 +77,20 @@ export default function SongModalComponent({
       <View style={{minWidth: 350, marginTop: 10}}>
         <View>
           <Slider
-            maximumValue={currentSong?.duration}
-            value={currentPlayingTime}
+            maximumValue={progress.duration}
+            minimumValue={0}
+            value={currentTime}
             style={{height: 45}}
             minimumTrackTintColor="black"
             maximumTrackTintColor="#000000"
-            onValueChange={number => setCurrentPlayingTime(number)}
+            onValueChange={number => setCurrentTime(number)}
+            onSlidingStart={handleSlidingStart}
+            onSlidingComplete={handleSlidingComplete}
             step={1}
           />
           <View style={styles.sliderTimeView}>
-            <Text>00:00</Text>
-            <Text>{formatDuration(currentPlayingTime)}</Text>
+            <Text>{formatDuration(currentTime)}</Text>
+            <Text>{formatDuration(progress?.duration)}</Text>
           </View>
         </View>
 
