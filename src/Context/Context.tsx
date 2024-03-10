@@ -26,14 +26,6 @@ interface ContextProps {
    */
   setPlayingSong: (song: Track | null) => void;
   /**
-   * Current playing time
-   */
-  currentPlayingTime: number;
-  /**
-   * Function to set the current time
-   */
-  setCurrentPlayingTime: (number: number) => void;
-  /**
    * Function that plays or pauses
    */
   playPause: () => void;
@@ -64,15 +56,17 @@ interface ContextProps {
   /**
    * state of the progess of the playing
    */
-  progress: Progress | undefined;
+  progress: Progress;
+  /**
+   * Function to change the seconds in which we are playing
+   */
+  goTo: (number: number) => void;
 }
 
 // Define the context
 export const AppContext = createContext<ContextProps>({
   currentSong: undefined,
   setPlayingSong: () => null,
-  setCurrentPlayingTime: () => null,
-  currentPlayingTime: 0,
   playPause: () => null,
   isPlaying: false,
   setIsPlaying: () => null,
@@ -80,13 +74,13 @@ export const AppContext = createContext<ContextProps>({
   changeSong: () => null,
   songList: [],
   state: {state: undefined},
-  progress: undefined,
+  progress: {duration: 0, position: 0, buffered: 0},
+  goTo: () => null,
 });
 
 // Define the ContextProvider component
 export function ContextProvider({children}: {children: React.ReactNode}) {
   const currentSong: Track | undefined = useActiveTrack();
-  const [currentPlayingTime, setCurrentPlayingTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const state: PlaybackState | {state: undefined} = usePlaybackState();
   const [songList, setSongList] = useState<Track[]>([]);
@@ -113,7 +107,6 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
         // If song is null, stop playback
         await TrackPlayer.stop();
         setIsPlaying(false);
-        setCurrentPlayingTime(0);
         return;
       }
 
@@ -160,9 +153,12 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
       case State.Stopped:
         await TrackPlayer.play();
         break;
-      default:
-        break;
     }
+  };
+
+  const goTo = async (number: number) => {
+    if (number >= 0) await TrackPlayer.seekTo(number);
+    return;
   };
 
   //HOOKS
@@ -190,18 +186,12 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
     }
   }, [state]);
 
-  useEffect(() => {
-    if (progress.position) setCurrentPlayingTime(progress.position);
-  }, [progress]);
-
   const likeToggle = (song: Track) => {};
 
   // Context value containing the current playing song and function to set it
   const contextValue: ContextProps = {
     currentSong,
     setPlayingSong,
-    currentPlayingTime,
-    setCurrentPlayingTime,
     playPause,
     isPlaying,
     setIsPlaying,
@@ -210,6 +200,7 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
     songList,
     state,
     progress,
+    goTo,
   };
 
   return (
