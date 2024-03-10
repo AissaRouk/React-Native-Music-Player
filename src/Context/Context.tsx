@@ -5,28 +5,66 @@ import React, {
   useEffect,
 } from 'react';
 import TrackPlayer, {
-  Capability,
   PlaybackState,
+  Progress,
   State,
   Track,
   useActiveTrack,
   usePlaybackState,
+  useProgress,
 } from 'react-native-track-player';
 import {addTrack, setupPlayer} from '../../musicPlayerServices';
 
 // Context prop types
 interface ContextProps {
+  /**
+   * Actual playing song
+   */
   currentSong: Track | undefined;
+  /**
+   * Function to set the actual song
+   */
   setPlayingSong: (song: Track | null) => void;
+  /**
+   * Current playing time
+   */
   currentPlayingTime: number;
+  /**
+   * Function to set the current time
+   */
   setCurrentPlayingTime: (number: number) => void;
+  /**
+   * Function that plays or pauses
+   */
   playPause: () => void;
+  /**
+   * State to see if the TrackPlayer is already playing
+   */
   isPlaying: boolean;
+  /**
+   * Function to change the isPlaying state
+   */
   setIsPlaying: (bool: boolean) => void;
+  /**
+   * Function that changes the like param
+   */
   likeToggle: (song: Track) => void;
+  /**
+   * Function to change the actual song
+   */
   changeSong: (direction: 'backwards' | 'forward') => void;
+  /**
+   * Track list
+   */
   songList: Track[];
+  /**
+   * The state of the playbackUser
+   */
   state: PlaybackState | {state: undefined};
+  /**
+   * state of the progess of the playing
+   */
+  progress: Progress | undefined;
 }
 
 // Define the context
@@ -42,6 +80,7 @@ export const AppContext = createContext<ContextProps>({
   changeSong: () => null,
   songList: [],
   state: {state: undefined},
+  progress: undefined,
 });
 
 // Define the ContextProvider component
@@ -51,6 +90,7 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const state: PlaybackState | {state: undefined} = usePlaybackState();
   const [songList, setSongList] = useState<Track[]>([]);
+  const progress: Progress = useProgress();
 
   // Load the last played song from AsyncStorage on component mount
   const loadLastPlayedSong = async () => {};
@@ -150,6 +190,10 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
     }
   }, [state]);
 
+  useEffect(() => {
+    if (progress.position) setCurrentPlayingTime(progress.position);
+  }, [progress]);
+
   const likeToggle = (song: Track) => {};
 
   // Context value containing the current playing song and function to set it
@@ -165,6 +209,7 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
     changeSong,
     songList,
     state,
+    progress,
   };
 
   return (
