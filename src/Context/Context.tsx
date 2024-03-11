@@ -14,53 +14,43 @@ import TrackPlayer, {
   useProgress,
 } from 'react-native-track-player';
 import {addTrack, setupPlayer} from '../../musicPlayerServices';
+import {playPause} from './playbackControl';
+import {
+  changeSong,
+  loadLastCurrentSong,
+  loadSongList,
+  setPlayingSong,
+} from './songManagement';
+import {goTo} from './timeFunctions';
 
 // Context prop types
 interface ContextProps {
-  /**
-   * Actual playing song
-   */
+  /** Currently playing song */
   currentSong: Track | undefined;
-  /**
-   * Function to set the actual song
-   */
+  /** Function to set the currently playing song */
   setPlayingSong: (song: Track | null) => void;
-  /**
-   * Function that plays or pauses
-   */
+  /** Function to play or pause the playback */
   playPause: () => void;
-  /**
-   * State to see if the TrackPlayer is already playing
-   */
+  /** State indicating if the track is playing */
   isPlaying: boolean;
-  /**
-   * Function to change the isPlaying state
-   */
+  /** Function to set the state of the playback */
   setIsPlaying: (bool: boolean) => void;
-  /**
-   * Function that changes the like param
-   */
+  /** Function to toggle the like status of a song */
   likeToggle: (song: Track) => void;
-  /**
-   * Function to change the actual song
-   */
+  /** Function to change the current song */
   changeSong: (direction: 'backwards' | 'forward') => void;
-  /**
-   * Track list
-   */
+  /** List of tracks */
   songList: Track[];
-  /**
-   * The state of the playbackUser
-   */
+  /** State of the playback */
   state: PlaybackState | {state: undefined};
-  /**
-   * state of the progess of the playing
-   */
+  /** Progress of the playback */
   progress: Progress;
-  /**
-   * Function to change the seconds in which we are playing
-   */
+  /** Function to navigate to a specific time in the track */
   goTo: (number: number) => void;
+  /** Function to load the song list */
+  loadSongList: () => void;
+  /** Function to load the last played song */
+  loadLastCurrentSong: () => void;
 }
 
 // Define the context
@@ -76,6 +66,8 @@ export const AppContext = createContext<ContextProps>({
   state: {state: undefined},
   progress: {duration: 0, position: 0, buffered: 0},
   goTo: () => null,
+  loadSongList: () => null,
+  loadLastCurrentSong: () => null,
 });
 
 // Define the ContextProvider component
@@ -86,91 +78,16 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
   const [songList, setSongList] = useState<Track[]>([]);
   const progress: Progress = useProgress();
 
-  // Load the last played song from AsyncStorage on component mount
-  const loadLastPlayedSong = async () => {};
-
-  // Load all the songs found and the new ones
-  const loadSongList = async () => {
-    const TrackList: Track[] = await TrackPlayer.getQueue();
-    if (TrackList.length > 0) {
-      setSongList(TrackList);
-    }
-  };
-
-  //Save in AsyncStorage the songList
-  const saveSongList = async () => {};
-
-  // Function to set the current playing song
-  const setPlayingSong = async (song: Track | null) => {
-    try {
-      if (!song) {
-        // If song is null, stop playback
-        await TrackPlayer.stop();
-        setIsPlaying(false);
-        return;
-      }
-
-      const songExists = songList.some(item => item.id === song.id);
-      if (!songExists) {
-        // Handle case where song doesn't exist in the songList
-        console.error('Song not found in the songList');
-        return;
-      }
-
-      // Skip to the selected song and start playback
-      await TrackPlayer.skip(song.id - 1);
-      await TrackPlayer.play();
-      setIsPlaying(true);
-    } catch (error) {
-      console.error('Error setting playing song:', error);
-    }
-  };
-
-  //function to allow the next and back song changing functionalities
-  const changeSong = async (direction: 'backwards' | 'forward') => {
-    if (direction == 'forward') await TrackPlayer.skipToNext();
-    else await TrackPlayer.skipToPrevious();
-  };
-
-  // Time functions
-  const loadLastCurrentSong = async () => {
-    const lastCurrentSong = await TrackPlayer.getActiveTrack();
-
-    // if (lastCurrentSong) {
-    //   setCurrentSong(lastCurrentSong);
-    // }
-  };
-
-  const saveCurrentPlayingTime = async () => {};
-
-  const playPause = async () => {
-    switch (state.state) {
-      case State.Playing:
-        await TrackPlayer.pause();
-        break;
-      case State.Paused:
-      case State.Ready:
-      case State.Stopped:
-        await TrackPlayer.play();
-        break;
-    }
-  };
-
-  const goTo = async (number: number) => {
-    if (number >= 0) await TrackPlayer.seekTo(number);
-    return;
-  };
-
   //HOOKS
-
-  //UseLayout effect
   useLayoutEffect(() => {
-    //set up player
     setupPlayer().then(() =>
-      addTrack().then(() => loadSongList().then(() => loadLastCurrentSong())),
+      addTrack().then(() =>
+        loadSongList(setSongList).then(() => loadSongList(setSongList)),
+      ),
     );
   }, []);
 
+  //every time the state changes change the pause/play states
   useEffect(() => {
     switch (state.state) {
       case State.Playing:
@@ -186,24 +103,28 @@ export function ContextProvider({children}: {children: React.ReactNode}) {
     }
   }, [state]);
 
-  const likeToggle = (song: Track) => {};
-
   // Context value containing the current playing song and function to set it
   const contextValue: ContextProps = {
     currentSong,
-    setPlayingSong,
-    playPause,
+    setPlayingSong: (song: Track | null) =>
+      setPlayingSong(song, songList, setIsPlaying),
+    playPause: () => playPause(state),
     isPlaying,
     setIsPlaying,
-    likeToggle,
-    changeSong,
+    likeToggle: (song: Track) => likeToggle(song, songList),
+    changeSong: (direction: 'backwards' | 'forward') => changeSong(direction),
     songList,
     state,
     progress,
-    goTo,
+    goTo: (number: number) => goTo(number),
+    loadSongList: () => loadSongList(setSongList),
+    loadLastCurrentSong: () => loadLastCurrentSong(),
   };
 
   return (
     <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
   );
+}
+function likeToggle(song: Track, songList: Track[]): void {
+  throw new Error('Function not implemented.');
 }
