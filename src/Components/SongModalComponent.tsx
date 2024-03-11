@@ -23,18 +23,12 @@ export default function SongModalComponent({
   const {currentSong, isPlaying, playPause, changeSong, progress, goTo} =
     useContext(AppContext);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [isSeeking, setIsSeeking] = useState<boolean>(false);
 
   useEffect(() => {
-    if (progress.position >= 0 && !isSeeking) setCurrentTime(progress.position);
-  }, [progress, isSeeking]);
-
-  const handleSlidingStart = () => {
-    setIsSeeking(true);
-  };
+    if (progress.position >= 0) setCurrentTime(progress.position);
+  }, [progress]);
 
   const handleSlidingComplete = (newValue: number) => {
-    setIsSeeking(false);
     goTo(newValue);
   };
 
@@ -84,7 +78,6 @@ export default function SongModalComponent({
             minimumTrackTintColor="black"
             maximumTrackTintColor="#000000"
             onValueChange={number => setCurrentTime(number)}
-            onSlidingStart={handleSlidingStart}
             onSlidingComplete={handleSlidingComplete}
             step={1}
           />
